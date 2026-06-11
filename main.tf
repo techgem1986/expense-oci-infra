@@ -84,20 +84,9 @@ terraform {
   #   Terraform Cloud: terraform init -backend-config=terraform/backend.tfc.hcl -reconfigure
 }
 
+# NOTE: The OCI provider block lives in terraform/provider.tf (the child module).
+# Variables declared above are forwarded to the child module below.
 # ---------------------------------------------------------------------------
-# OCI Provider
-# ---------------------------------------------------------------------------
-# Local execution:  set oci_private_key_path to your key file, leave oci_private_key empty
-# TFC execution:    set oci_private_key to the PEM contents, leave oci_private_key_path empty
-# ---------------------------------------------------------------------------
-provider "oci" {
-  region           = var.oci_region
-  tenancy_ocid     = var.tenancy_ocid
-  user_ocid        = var.user_ocid
-  fingerprint      = var.fingerprint
-  private_key      = var.oci_private_key != "" ? var.oci_private_key : null
-  private_key_path = var.oci_private_key == "" ? var.private_key_path : null
-}
 
 # =============================================================================
 # Root Input Variables
