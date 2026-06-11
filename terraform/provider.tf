@@ -44,8 +44,12 @@ terraform {
 # This follows the pattern from https://github.com/oracle/terraform-provider-oci
 # ---------------------------------------------------------------------------
 locals {
+  # Debug: Check which authentication method is being used
+  using_tfc_private_key = var.oci_private_key != ""
+  private_key_path_expanded = pathexpand(var.private_key_path)
+  
   # Determine which private key to use
-  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : file(pathexpand(var.private_key_path))
+  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : file(local.private_key_path_expanded)
   
   # Validate that we have a private key
   validate_private_key = (

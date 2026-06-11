@@ -392,3 +392,39 @@ output "post_setup_instructions" {
   description = "Instructions after Terraform apply completes"
   value       = module.expense_oci_infra.post_setup_instructions
 }
+
+# =============================================================================
+# Debug Outputs — Authentication Configuration
+# =============================================================================
+# These outputs help diagnose authentication issues in Terraform Cloud
+# =============================================================================
+
+output "debug_auth_method" {
+  description = "Which authentication method is being used (TFC or local file)"
+  value       = module.expense_oci_infra.debug_auth_method
+}
+
+output "debug_private_key_path" {
+  description = "Expanded path to the private key file (for local execution)"
+  value       = module.expense_oci_infra.debug_private_key_path
+}
+
+output "debug_oci_private_key_set" {
+  description = "Whether oci_private_key variable is set (true/false)"
+  value       = module.expense_oci_infra.debug_oci_private_key_set
+}
+
+output "debug_tenancy_ocid_set" {
+  description = "Whether tenancy_ocid is configured"
+  value       = length(var.tenancy_ocid) > 0 ? "✓ SET" : "✗ NOT SET"
+}
+
+output "debug_user_ocid_set" {
+  description = "Whether user_ocid is configured"
+  value       = length(var.user_ocid) > 0 ? "✓ SET" : "✗ NOT SET"
+}
+
+output "debug_fingerprint_set" {
+  description = "Whether fingerprint is configured"
+  value       = length(var.fingerprint) > 0 ? "✓ SET" : "✗ NOT SET"
+}
