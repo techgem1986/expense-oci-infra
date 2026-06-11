@@ -1,0 +1,344 @@
+#cloud-config
+# =============================================================================
+# App Server Cloud-Init
+# Bootstraps: Docker, App Stack (Nginx + Spring Boot Backend + Prometheus)
+# =============================================================================
+
+hostname: expense-app
+manage_etc_hosts: true
+
+# ---------------------------------------------------------------------------
+# Package Installation
+# ---------------------------------------------------------------------------
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - unzip
+  - iotop
+  - htop
+  - fail2ban
+  - certbot
+  - python3-certbot-nginx
+  - nginx
+  - git
+
+# ---------------------------------------------------------------------------
+# Run Commands
+# ---------------------------------------------------------------------------
+runcmd:
+  # ----------------------------------------------------
+  # Mount Block Volume
+  # ----------------------------------------------------
+  - |
+    echo "Checking for block volume..."
+    if [ -b /dev/oracleoci/oraclevdb ]; then
+      if ! blkid /dev/oracleoci/oraclevdb; then
+        mkfs.ext4 -m 0 -L appdata /dev/oracleoci/oraclevdb
+      fi
+      mkdir -p /data
+      echo "LABEL=appdata /data ext4 defaults,noatime,nodiratime 0 2" >> /etc/fstab
+      mount /data
+    fi
+
+  # ----------------------------------------------------
+  # Install Docker
+  # ----------------------------------------------------
+  - |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    systemctl enable docker
+    systemctl start docker
+    usermod -aG docker ubuntu
+
+  # ----------------------------------------------------
+  # Create Data Directories
+  # ----------------------------------------------------
+  - mkdir -p /data/docker-logs /data/letsencrypt
+
+  # ----------------------------------------------------
+  # Deploy Application Stack with Docker Compose
+  # ----------------------------------------------------
+  - mkdir -p /opt/expense-app
+
+  # Create the production docker-compose file
+  - |
+    cat > /opt/expense-app/docker-compose.prod.yml << 'COMPOSE_EOF'
+    # =============================================================================
+    # Production Docker Compose - Expense Management System
+    # =============================================================================
+    # Deployed on: OCI ARM Ampere A1 (2 OCPU, 12GB RAM)
+    # Architecture:
+    #   - expense-backend:  Spring Boot 3.4 (Java 17, port 8080)
+    #   - expense-frontend: Nginx serving React SPA (port 80)
+    #   - prometheus:        Metrics scraper
+    #   - node-exporter:     System metrics
+    # Database (PostgreSQL + Redis) runs on the DB server (${db_private_ip})
+    # =============================================================================
+    version: "3.8"
+
+    networks:
+      expense-net:
+        driver: bridge
+
+    volumes:
+      prometheus_data:
+        driver: local
+        driver_opts:
+          type: none
+          o: bind
+          device: /data/prometheus
+      docker_logs:
+        driver: local
+        driver_opts:
+          type: none
+          o: bind
+          device: /data/docker-logs
+
+    services:
+      # =========================================================================
+      # Spring Boot Backend Application
+      # =========================================================================
+      backend:
+        image: expense-backend:latest
+        container_name: expense-backend
+        restart: unless-stopped
+        networks:
+          - expense-net
+        environment:
+          # Spring Boot profile
+          SPRING_PROFILES_ACTIVE: prod
+          # Database connection (points to DB server private IP)
+          DATABASE_URL: jdbc:postgresql://${db_private_ip}:5432/expense_db
+          DATABASE_USERNAME: postgres
+          DATABASE_PASSWORD: ${db_password}
+          # Redis connection (points to DB server private IP)
+          REDIS_URL: redis://${db_private_ip}:6379
+          # JWT signing secret
+          JWT_SECRET: ${jwt_secret}
+          # Grafana Cloud metrics (optional)
+          GRAFANA_CLOUD_URL: ${grafana_cloud_url}
+          GRAFANA_CLOUD_API_KEY: ${grafana_cloud_key}
+          # Java opts for 12GB RAM instance (leave 2GB for OS + Nginx + Prometheus)
+          JAVA_OPTS: >-
+            -Xms512m -Xmx8g
+            -XX:+UseG1GC
+            -XX:MaxGCPauseMillis=200
+            -XX:+HeapDumpOnOutOfMemoryError
+            -XX:HeapDumpPath=/tmp/backend-heapdump.hprof
+            -Djava.security.egd=file:/dev/./urandom
+        ports:
+          - "8080:8080"
+        healthcheck:
+          test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+          interval: 15s
+          timeout: 5s
+          retries: 5
+          start_period: 60s
+        logging:
+          driver: json-file
+          options:
+            max-size: "20m"
+            max-file: "5"
+        deploy:
+          resources:
+            limits:
+              memory: 8g
+            reservations:
+              memory: 512m
+
+      # =========================================================================
+      # Nginx Frontend (React SPA + API Proxy)
+      # =========================================================================
+      frontend:
+        image: expense-frontend:latest
+        container_name: expense-frontend
+        restart: unless-stopped
+        networks:
+          - expense-net
+        ports:
+          - "80:80"
+        depends_on:
+          backend:
+            condition: service_healthy
+        healthcheck:
+          test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
+          interval: 15s
+          timeout: 5s
+          retries: 3
+          start_period: 10s
+        logging:
+          driver: json-file
+          options:
+            max-size: "10m"
+            max-file: "3"
+        deploy:
+          resources:
+            limits:
+              memory: 512m
+            reservations:
+              memory: 64m
+
+      # =========================================================================
+      # Prometheus (Metrics Collection)
+      # =========================================================================
+      prometheus:
+        image: prom/prometheus:v2.53.0
+        container_name: expense-prometheus
+        restart: unless-stopped
+        networks:
+          - expense-net
+        volumes:
+          - /opt/expense-app/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+          - prometheus_data:/prometheus
+        command:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--storage.tsdb.retention.time=30d'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--web.enable-lifecycle'
+        ports:
+          - "9090:9090"
+        healthcheck:
+          test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1"]
+          interval: 30s
+          timeout: 5s
+          retries: 3
+        logging:
+          driver: json-file
+          options:
+            max-size: "10m"
+            max-file: "3"
+        deploy:
+          resources:
+            limits:
+              memory: 512m
+
+      # =========================================================================
+      # Node Exporter (Host System Metrics)
+      # =========================================================================
+      node-exporter:
+        image: prom/node-exporter:v1.8.0
+        container_name: expense-node-exporter
+        restart: unless-stopped
+        pid: host
+        network_mode: host
+        volumes:
+          - /proc:/host/proc:ro
+          - /sys:/host/sys:ro
+          - /:/rootfs:ro
+        command:
+          - '--path.procfs=/host/proc'
+          - '--path.sysfs=/host/sys'
+          - '--path.rootfs=/rootfs'
+          - '--collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containerd/.+|run/.+)($$|/)'
+        deploy:
+          resources:
+            limits:
+              memory: 128m
+    COMPOSE_EOF
+
+  # Create Prometheus configuration
+  - |
+    cat > /opt/expense-app/prometheus.yml << 'PROM_EOF'
+    # =============================================================================
+    # Prometheus Configuration - Expense Management System
+    # =============================================================================
+    global:
+      scrape_interval: 15s
+      scrape_timeout: 10s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      # Spring Boot Backend metrics
+      - job_name: 'expense-backend'
+        metrics_path: '/actuator/prometheus'
+        static_configs:
+          - targets: ['backend:8080']
+            labels:
+              service: 'expense-backend'
+              environment: 'production'
+
+      # Prometheus self-monitoring
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+    PROM_EOF
+
+  # ----------------------------------------------------
+  # Build Docker Images
+  # =============================================================================
+  # NOTE: In production, images should be built via CI/CD and pushed to a
+  # container registry (Docker Hub, GHCR, or OCI Container Registry).
+  # The cloud-init step below builds them locally—this works but is not ideal
+  # for production. Configure OCI Container Registry (OCIR) for best results.
+  #
+  # For Always Free OCIR: OCI Container Registry is always free up to 500MB
+  # storage (across all repos). Adequate for this stack (~200MB backend +
+  # ~50MB frontend Alpine images).
+  # =============================================================================
+  - |
+    echo "Building Docker images..."
+    cd /opt/expense-app
+
+    # Clone or fetch the application source
+    if [ ! -d "source" ]; then
+      git clone https://github.com/YOUR_USERNAME/expense-management-system.git source
+    fi
+
+    cd source
+
+    # Build backend Docker image
+    docker build -t expense-backend:latest -f expense-backend/Dockerfile expense-backend/
+
+    # Build frontend Docker image
+    docker build \
+      --build-arg REACT_APP_API_BASE_URL=https://${app_domain}/api \
+      -t expense-frontend:latest \
+      -f expense-frontend/Dockerfile \
+      expense-frontend/
+
+  # ----------------------------------------------------
+  # Start Application Stack
+  # ----------------------------------------------------
+  - cd /opt/expense-app && docker compose -f docker-compose.prod.yml up -d
+
+  # ----------------------------------------------------
+  # Configure Firewall (UFW)
+  # ----------------------------------------------------
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 80/tcp comment 'HTTP'
+  - ufw allow 443/tcp comment 'HTTPS'
+  - ufw --force enable
+
+  # ----------------------------------------------------
+  # Fail2Ban for SSH protection
+  # ----------------------------------------------------
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # ----------------------------------------------------
+  # Cron: Docker Log Cleanup (weekly)
+  # ----------------------------------------------------
+  - |
+    cat > /etc/cron.weekly/docker-cleanup << 'CRON_EOF'
+    #!/bin/bash
+    docker system prune -af --filter "until=168h" || true
+    CRON_EOF
+  - chmod +x /etc/cron.weekly/docker-cleanup
+
+  # ----------------------------------------------------
+  # Mark cloud-init complete
+  # ----------------------------------------------------
+  - |
+    echo "=== App Server Bootstrap Complete ===" > /var/log/bootstrap-complete.log
+    date >> /var/log/bootstrap-complete.log
+    docker compose -f /opt/expense-app/docker-compose.prod.yml ps >> /var/log/bootstrap-complete.log 2>&1 || echo "Docker stack may not be ready yet" >> /var/log/bootstrap-complete.log

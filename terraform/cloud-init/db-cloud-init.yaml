@@ -1,0 +1,230 @@
+#cloud-config
+# =============================================================================
+# DB Server Cloud-Init
+# Bootstraps: Docker, PostgreSQL 15, Redis 7
+# Data stored on attached block volume at /data
+# =============================================================================
+
+hostname: expense-db
+manage_etc_hosts: true
+
+# ---------------------------------------------------------------------------
+# Package Installation
+# ---------------------------------------------------------------------------
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - unzip
+  - iotop
+  - htop
+  - fail2ban
+
+# ---------------------------------------------------------------------------
+# Write Files
+# ---------------------------------------------------------------------------
+write_files:
+  # System limits for high-connection databases
+  - path: /etc/security/limits.d/99-postgresql.conf
+    permissions: '0644'
+    content: |
+      postgres    soft    nofile    65536
+      postgres    hard    nofile    65536
+      postgres    soft    nproc     4096
+      postgres    hard    nproc     4096
+
+  - path: /etc/sysctl.d/99-postgresql.conf
+    permissions: '0644'
+    content: |
+      kernel.shmmax = 2147483648
+      kernel.shmall = 524288
+      vm.swappiness = 0
+      vm.overcommit_memory = 2
+      vm.overcommit_ratio = 80
+      net.core.somaxconn = 1024
+      net.ipv4.tcp_keepalive_time = 60
+      net.ipv4.tcp_keepalive_intvl = 10
+      net.ipv4.tcp_keepalive_probes = 6
+
+# ---------------------------------------------------------------------------
+# Run Commands
+# ---------------------------------------------------------------------------
+runcmd:
+  # Apply sysctl
+  - sysctl --system
+
+  # ----------------------------------------------------
+  # Mount Block Volume
+  # ----------------------------------------------------
+  - |
+    echo "Checking for block volume..."
+    if [ -b /dev/oracleoci/oraclevdb ]; then
+      if ! blkid /dev/oracleoci/oraclevdb; then
+        mkfs.ext4 -m 0 -L data /dev/oracleoci/oraclevdb
+      fi
+      mkdir -p /data
+      echo "LABEL=data /data ext4 defaults,noatime,nodiratime 0 2" >> /etc/fstab
+      mount /data
+    fi
+
+  # ----------------------------------------------------
+  # Install Docker
+  # ----------------------------------------------------
+  - |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    systemctl enable docker
+    systemctl start docker
+    usermod -aG docker ubuntu
+
+  # ----------------------------------------------------
+  # Create Data Directories
+  # ----------------------------------------------------
+  - mkdir -p /data/postgresql /data/redis /data/backups
+  - chmod 700 /data/postgresql
+
+  # ----------------------------------------------------
+  # Deploy PostgreSQL + Redis with Docker Compose
+  # ----------------------------------------------------
+  - |
+    mkdir -p /opt/expense-db
+
+  - |
+    cat > /opt/expense-db/docker-compose.yml << 'COMPOSE_EOF'
+    # =============================================================================
+    # DB Server Docker Compose - PostgreSQL 15 + Redis 7
+    # =============================================================================
+    version: "3.8"
+
+    networks:
+      expense-db-net:
+        driver: bridge
+
+    volumes:
+      postgres_data:
+        driver: local
+        driver_opts:
+          type: none
+          o: bind
+          device: /data/postgresql
+      redis_data:
+        driver: local
+        driver_opts:
+          type: none
+          o: bind
+          device: /data/redis
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        container_name: expense-postgres
+        restart: unless-stopped
+        networks:
+          - expense-db-net
+        ports:
+          - "5432:5432"
+        environment:
+          POSTGRES_DB: expense_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${db_password}
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U postgres -d expense_db"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+          start_period: 30s
+        logging:
+          driver: json-file
+          options:
+            max-size: "10m"
+            max-file: "3"
+
+      redis:
+        image: redis:7-alpine
+        container_name: expense-redis
+        restart: unless-stopped
+        networks:
+          - expense-db-net
+        ports:
+          - "6379:6379"
+        command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+        volumes:
+          - redis_data:/data
+        healthcheck:
+          test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+          start_period: 20s
+        logging:
+          driver: json-file
+          options:
+            max-size: "5m"
+            max-file: "3"
+    COMPOSE_EOF
+
+  # Start the DB stack
+  - cd /opt/expense-db && docker compose up -d
+
+  # ----------------------------------------------------
+  # Configure Firewall (UFW)
+  # ----------------------------------------------------
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 5432/tcp comment 'PostgreSQL'
+  - ufw allow 6379/tcp comment 'Redis'
+  - ufw allow 9100/tcp comment 'Prometheus Node Exporter'
+  - ufw --force enable
+
+  # ----------------------------------------------------
+  # Fail2Ban for SSH protection
+  # ----------------------------------------------------
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # ----------------------------------------------------
+  # Cron: Daily Database Backup
+  # ----------------------------------------------------
+  - |
+    cat > /usr/local/bin/backup-db.sh << 'BACKUP_EOF'
+    #!/bin/bash
+    set -e
+    BACKUP_DIR="/data/backups"
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    RETENTION_DAYS=7
+
+    mkdir -p "$BACKUP_DIR"
+
+    # PostgreSQL dump
+    docker exec expense-postgres pg_dump -U postgres expense_db \
+      | gzip > "$BACKUP_DIR/expense_db_$TIMESTAMP.sql.gz"
+
+    # Redis backup (trigger BGSAVE copy)
+    docker exec expense-redis redis-cli BGSAVE
+    # Copy the latest RDB
+    docker cp expense-redis:/data/dump.rdb "$BACKUP_DIR/redis_$TIMESTAMP.rdb" 2>/dev/null || true
+
+    # Remove backups older than retention period
+    find "$BACKUP_DIR" -name "*.sql.gz" -mtime +$RETENTION_DAYS -delete
+    find "$BACKUP_DIR" -name "*.rdb" -mtime +$RETENTION_DAYS -delete
+    BACKUP_EOF
+
+  - chmod +x /usr/local/bin/backup-db.sh
+  - echo "0 2 * * * root /usr/local/bin/backup-db.sh >> /var/log/db-backup.log 2>&1" > /etc/cron.d/db-backup
+
+  # ----------------------------------------------------
+  # Mark cloud-init complete
+  # ----------------------------------------------------
+  - |
+    echo "=== DB Server Bootstrap Complete ===" > /var/log/bootstrap-complete.log
+    date >> /var/log/bootstrap-complete.log
+    echo "PostgreSQL: docker compose -f /opt/expense-db/docker-compose.yml ps" >> /var/log/bootstrap-complete.log

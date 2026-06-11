@@ -1,0 +1,28 @@
+# Terraform
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.terraform/
+terraform/terraform.tfvars
+terraform/*.auto.tfvars
+terraform/override.tf
+terraform/override.tf.json
+terraform/.terraform.tfstate.lock.info
+terraform/crash.log
+
+# Sensitive files
+*.pem
+*.key
+*.cert
+*.crt
+credentials
+*.secret
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,48 @@
+# =============================================================================
+# Terraform Variables - Example Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# NEVER commit terraform.tfvars to version control — it contains secrets!
+# =============================================================================
+
+# ---- OCI Authentication ----
+tenancy_ocid    = "ocid1.tenancy.oc1..aaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+user_ocid       = "ocid1.user.oc1..aaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+fingerprint     = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+#
+# Local execution: use private_key_path (file path)
+# Terraform Cloud: use oci_private_key (PEM content) instead
+private_key_path = "~/.oci/oci_api_key.pem"
+# oci_private_key  = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+oci_region      = "ap-mumbai-1"
+
+# ---- Networking ----
+vcn_cidr              = "10.0.0.0/16"
+public_subnet_app_cidr = "10.0.1.0/24"
+public_subnet_db_cidr  = "10.0.2.0/24"
+
+# ---- Compute ----
+app_instance_ocpus     = 2
+app_instance_memory_gb = 12
+db_instance_ocpus      = 2
+db_instance_memory_gb  = 12
+
+# ---- Block Storage (always free: 100GB total across 2 volumes) ----
+app_block_volume_size_gb = 50
+db_block_volume_size_gb  = 50
+
+# ---- SSH Access ----
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+# Restrict SSH to your office/home IP for security:
+ssh_allowed_ip      = "0.0.0.0/0"  # <-- CHANGE THIS to your IP, e.g. "203.0.113.0/32"
+
+# ---- Application ----
+app_domain  = "expense.yourdomain.com"
+db_password = "CHANGE_ME_TO_A_SECURE_PASSWORD_32_CHARS_MIN"
+jwt_secret  = "CHANGE_ME_TO_A_RANDOM_256_BIT_STRING_AT_LEAST_32_CHARS"
+
+# ---- Grafana Cloud (optional, leave empty to skip) ----
+grafana_cloud_api_key        = ""
+grafana_cloud_prometheus_url = ""
