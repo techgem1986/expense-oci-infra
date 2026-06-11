@@ -36,16 +36,24 @@ terraform {
 }
 
 # ---------------------------------------------------------------------------
+# Local — Resolve OCI private key (TFC content vs local file path)
+# ---------------------------------------------------------------------------
+# The OCI provider only accepts one of private_key or private_key_path
+# (not both, not null).  When oci_private_key is set (TFC / CI env),
+# use it directly.  Otherwise read the key from local file path.
+# This follows the pattern from https://github.com/oracle/terraform-provider-oci
+# ---------------------------------------------------------------------------
+locals {
+  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : try(file(pathexpand(var.private_key_path)), "")
+}
+
+# ---------------------------------------------------------------------------
 # OCI Provider
 # ---------------------------------------------------------------------------
-# Local execution:  var.oci_private_key stays "" → uses var.private_key_path
-# TFC execution:    var.oci_private_key holds PEM content → supersedes path
-# ---------------------------------------------------------------------------
 provider "oci" {
-  region           = var.oci_region
-  tenancy_ocid     = var.tenancy_ocid
-  user_ocid        = var.user_ocid
-  fingerprint      = var.fingerprint
-  private_key      = var.oci_private_key != "" ? var.oci_private_key : null
-  private_key_path = var.oci_private_key == "" ? var.private_key_path : null
+  region       = var.oci_region
+  tenancy_ocid = var.tenancy_ocid
+  user_ocid    = var.user_ocid
+  fingerprint  = var.fingerprint
+  private_key  = local.oci_api_private_key
 }
