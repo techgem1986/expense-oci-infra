@@ -44,7 +44,15 @@ terraform {
 # This follows the pattern from https://github.com/oracle/terraform-provider-oci
 # ---------------------------------------------------------------------------
 locals {
-  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : try(file(pathexpand(var.private_key_path)), "")
+  # Determine which private key to use
+  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : file(pathexpand(var.private_key_path))
+  
+  # Validate that we have a private key
+  validate_private_key = (
+    length(local.oci_api_private_key) > 0 
+    ? true 
+    : file("ERROR: No OCI private key provided. Set either oci_private_key variable (for TFC) or ensure private_key_path file exists (for local execution)")
+  )
 }
 
 # ---------------------------------------------------------------------------
