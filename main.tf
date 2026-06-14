@@ -402,6 +402,7 @@ output "post_setup_instructions" {
 output "debug_auth_method" {
   description = "Which authentication method is being used (TFC or local file)"
   value       = module.expense_oci_infra.debug_auth_method
+  sensitive   = true
 }
 
 output "debug_private_key_path" {

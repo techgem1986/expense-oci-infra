@@ -45,17 +45,23 @@ terraform {
 # ---------------------------------------------------------------------------
 locals {
   # Debug: Check which authentication method is being used
-  using_tfc_private_key = var.oci_private_key != ""
+  using_tfc_private_key      = var.oci_private_key != ""
   private_key_path_expanded = pathexpand(var.private_key_path)
-  
-  # Determine which private key to use
-  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : file(local.private_key_path_expanded)
-  
-  # Validate that we have a private key
-  validate_private_key = (
-    length(local.oci_api_private_key) > 0 
-    ? true 
-    : file("ERROR: No OCI private key provided. Set either oci_private_key variable (for TFC) or ensure private_key_path file exists (for local execution)")
+
+  # Determine which private key to use.
+  # On TFC (remote execution) var.oci_private_key must be set in workspace variables.
+  # On local execution the key is read from private_key_path on disk.
+  # We use try() so that if the file doesn't exist we fall back to an empty string
+  # rather than a hard error, then validate below.
+  oci_api_private_key = var.oci_private_key != "" ? var.oci_private_key : try(file(local.private_key_path_expanded), "")
+
+  # ------------------------------------------------------------------
+  # Pre-condition: a non-empty private key MUST be provided through
+  #                 one of the two supported methods.
+  # ------------------------------------------------------------------
+  _check_private_key = regex(
+    "^(-----BEGIN [A-Z ]*PRIVATE KEY-----)",
+    local.oci_api_private_key
   )
 }
 
