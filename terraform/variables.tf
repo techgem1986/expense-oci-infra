@@ -64,43 +64,48 @@ variable "public_subnet_db_cidr" {
 # =============================================================================
 # Compute
 # =============================================================================
-# ARM Ampere A1 Always Free: up to 4 OCPUs, 24GB total RAM across instances
-# Strategy: 2 instances × 2 OCPU / 12GB each
+# AMD Micro Always Free: VM.Standard.E2.1.Micro (1 OCPU, 1GB RAM, x86)
+# This shape has better availability than ARM Ampere A1 in some regions.
+# Limitation: 1 OCPU / 1GB is minimal — tune Docker containers accordingly.
+# ---------------------------------------------------------------------------
+# If you need more resources, switch back to VM.Standard.A1.Flex (ARM, 2 OCPU / 12GB)
+# but be aware of capacity constraints in certain regions (e.g., ap-hyderabad-1).
+# =============================================================================
 
 variable "app_instance_shape" {
-  description = "Compute shape for the application server (ARM Always Free)"
+  description = "Compute shape for the application server (AMD Micro Always Free)"
   type        = string
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E2.1.Micro"
 }
 
 variable "app_instance_ocpus" {
-  description = "Number of OCPUs for the application server"
+  description = "Number of OCPUs for the application server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "app_instance_memory_gb" {
-  description = "Memory in GB for the application server"
+  description = "Memory in GB for the application server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 12
+  default     = 1
 }
 
 variable "db_instance_shape" {
-  description = "Compute shape for the database server (ARM Always Free)"
+  description = "Compute shape for the database server (AMD Micro Always Free)"
   type        = string
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E2.1.Micro"
 }
 
 variable "db_instance_ocpus" {
-  description = "Number of OCPUs for the database server"
+  description = "Number of OCPUs for the database server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "db_instance_memory_gb" {
-  description = "Memory in GB for the database server"
+  description = "Memory in GB for the database server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 12
+  default     = 1
 }
 
 # =============================================================================

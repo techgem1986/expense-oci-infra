@@ -1,13 +1,19 @@
 # =============================================================================
-# OCI Compute - ARM Ampere A1 Instances
+# OCI Compute - AMD Micro Instances
 # =============================================================================
 # Design:
-#   - 2 instances (app + database) running on ARM Ampere A1 (Always Free)
-#   - Each instance: 2 OCPU, 12GB RAM (total: 4 OCPU / 24GB — max free tier)
+#   - 2 instances (app + database) running on AMD Micro (Always Free)
+#   - Each instance: VM.Standard.E2.1.Micro (1 OCPU, 1GB RAM, x86)
 #   - App instance collocates: Docker Compose (Spring Boot backend + Nginx frontend)
 #   - DB instance collocates: PostgreSQL 15 + Redis 7
 #   - Instances in separate ADs for resilience
 #   - Cloud-init for automated bootstrap
+# =============================================================================
+#
+# NOTE: VM.Standard.E2.1.Micro is a FIXED shape (not Flex).
+# It does NOT support shape_config block. OCPUs and memory are fixed.
+# If you need more resources, switch to VM.Standard.A1.Flex (Flex shape)
+# and uncomment the shape_config blocks.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -30,10 +36,12 @@ resource "oci_core_instance" "app_instance" {
   shape               = var.app_instance_shape
   display_name        = "expense-app-server"
 
-  shape_config {
-    ocpus         = var.app_instance_ocpus
-    memory_in_gbs = var.app_instance_memory_gb
-  }
+  # shape_config is omitted for fixed shapes (e.g., VM.Standard.E2.1.Micro).
+  # Uncomment only for Flex shapes (e.g., VM.Standard.A1.Flex):
+  # shape_config {
+  #   ocpus         = var.app_instance_ocpus
+  #   memory_in_gbs = var.app_instance_memory_gb
+  # }
 
   source_details {
     source_type = "image"
@@ -75,10 +83,12 @@ resource "oci_core_instance" "db_instance" {
   shape               = var.db_instance_shape
   display_name        = "expense-db-server"
 
-  shape_config {
-    ocpus         = var.db_instance_ocpus
-    memory_in_gbs = var.db_instance_memory_gb
-  }
+  # shape_config is omitted for fixed shapes (e.g., VM.Standard.E2.1.Micro).
+  # Uncomment only for Flex shapes (e.g., VM.Standard.A1.Flex):
+  # shape_config {
+  #   ocpus         = var.db_instance_ocpus
+  #   memory_in_gbs = var.db_instance_memory_gb
+  # }
 
   source_details {
     source_type = "image"

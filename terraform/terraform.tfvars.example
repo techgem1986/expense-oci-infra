@@ -23,11 +23,14 @@ vcn_cidr              = "10.0.0.0/16"
 public_subnet_app_cidr = "10.0.1.0/24"
 public_subnet_db_cidr  = "10.0.2.0/24"
 
-# ---- Compute ----
-app_instance_ocpus     = 2
-app_instance_memory_gb = 12
-db_instance_ocpus      = 2
-db_instance_memory_gb  = 12
+# ---- Compute (AMD Micro E2.1 - fixed shape: 1 OCPU / 1 GB RAM) ----
+# VM.Standard.E2.1.Micro is a fixed shape. ocpus/memory are informational.
+app_instance_shape     = "VM.Standard.E2.1.Micro"
+app_instance_ocpus     = 1
+app_instance_memory_gb = 1
+db_instance_shape      = "VM.Standard.E2.1.Micro"
+db_instance_ocpus      = 1
+db_instance_memory_gb  = 1
 
 # ---- Block Storage (always free: 100GB total across 2 volumes) ----
 app_block_volume_size_gb = 50

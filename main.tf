@@ -24,20 +24,20 @@
 # Architecture (see terraform/ for the ASCII diagram)
 # ---------------------------------------------------------------------------
 #   Internet → OCI Flexible LB (10 Mbps) → VCN (10.0.0.0/16)
-#     ├── App Subnet  (10.0.1.0/24) → ARM Ampere A1 (2 OCPU / 12 GB)
+#     ├── App Subnet  (10.0.1.0/24) → AMD Micro (1 OCPU / 1 GB, x86)
 #     │     Docker Compose: Nginx + Spring Boot + Prometheus
 #     │     Block Volume 50 GB (docker data, logs)
-#     └── DB Subnet   (10.0.2.0/24) → ARM Ampere A1 (2 OCPU / 12 GB)
+#     └── DB Subnet   (10.0.2.0/24) → AMD Micro (1 OCPU / 1 GB, x86)
 #           Docker Compose: PostgreSQL 17 + Redis 7
 #           Block Volume 50 GB (PGDATA, Redis AOF/RDB)
 #
 # ---------------------------------------------------------------------------
 # Always Free Tier Allocation
 # ---------------------------------------------------------------------------
-#   Compute  2 × VM.Standard.A1.Flex  (4 OCPU / 24 GB total)   ✓ maxed
-#   Storage  2 × 50 GB Block Volumes   (100 GB total)           ✓ maxed
-#   Network  1 × Flexible LB           (10 Mbps)                ✓ maxed
-#   Boot     2 × boot volumes          (~47 GB each, included)
+#   Compute  2 × VM.Standard.E2.1.Micro  (2 OCPU / 2 GB total)  ✓
+#   Storage  2 × 50 GB Block Volumes     (100 GB total)         ✓ maxed
+#   Network  1 × Flexible LB             (10 Mbps)              ✓ maxed
+#   Boot     2 × boot volumes            (~47 GB each, included)
 #
 # ---------------------------------------------------------------------------
 # Quick Start
@@ -158,39 +158,39 @@ variable "public_subnet_db_cidr" {
 
 # --- Compute ---
 variable "app_instance_shape" {
-  description = "Compute shape for the application server (ARM Always Free)"
+  description = "Compute shape for the application server (AMD Micro Always Free)"
   type        = string
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E2.1.Micro"
 }
 
 variable "app_instance_ocpus" {
-  description = "Number of OCPUs for the application server"
+  description = "Number of OCPUs for the application server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "app_instance_memory_gb" {
-  description = "Memory in GB for the application server"
+  description = "Memory in GB for the application server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 12
+  default     = 1
 }
 
 variable "db_instance_shape" {
-  description = "Compute shape for the database server (ARM Always Free)"
+  description = "Compute shape for the database server (AMD Micro Always Free)"
   type        = string
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E2.1.Micro"
 }
 
 variable "db_instance_ocpus" {
-  description = "Number of OCPUs for the database server"
+  description = "Number of OCPUs for the database server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "db_instance_memory_gb" {
-  description = "Memory in GB for the database server"
+  description = "Memory in GB for the database server (fixed for Micro shape, kept for compatibility)"
   type        = number
-  default     = 12
+  default     = 1
 }
 
 # --- OS Image ---
