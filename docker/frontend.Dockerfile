@@ -6,6 +6,7 @@
 #   - Uses production nginx.conf from oci-deployment/conf/
 #   - Optimized static asset caching
 #   - Security headers in nginx config (not in this Dockerfile)
+#   - Node 22 LTS + Nginx Alpine
 #
 # Build:
 #   docker build -t expense-frontend:latest \
@@ -15,7 +16,7 @@
 # =============================================================================
 
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 

@@ -11,15 +11,15 @@ This document explains how to set up Terraform Cloud to manage the OCI infrastru
 │   (CI/CD pipeline)  │─────────►│  (Remote Execution)   │
 │                     │          │                      │
 └─────────────────────┘          └──────────┬───────────┘
-                                            │
-                                            │ OCI Provider
-                                            │ (API Key Auth)
-                                            ▼
-                                    ┌────────────────┐
-                                    │                │
-                                    │  OCI Tenancy   │
-                                    │                │
-                                    └────────────────┘
+                                             │
+                                             │ OCI Provider
+                                             │ (API Key Auth)
+                                             ▼
+                                     ┌────────────────┐
+                                     │                │
+                                     │  OCI Tenancy   │
+                                     │                │
+                                     └────────────────┘
 ```
 
 ## Prerequisites
@@ -46,7 +46,7 @@ This document explains how to set up Terraform Cloud to manage the OCI infrastru
 3. Select **GitHub** (or your provider)
 4. Connect your repository (`your-org/expense-management-system`)
 5. Set workspace name: `expense-management-oci`
-6. Set **Terraform Working Directory** to: `oci-deployment/terraform`
+6. Set **Terraform Working Directory** to: `expense-oci-infra`
 7. Click **Create workspace**
 
 ---
@@ -73,7 +73,7 @@ Set these in the workspace **Variables** tab (Terraform Variables section):
 | `user_ocid` | `ocid1.user.oc1..aaaaaaa...` | Yes |
 | `fingerprint` | `xx:xx:xx:xx:xx:...` | Yes |
 | `oci_private_key` | Full PEM content of your OCI API key | Yes |
-| `oci_region` | `ap-mumbai-1` | No |
+| `oci_region` | `ap-hyderabad-1` | No |
 
 > **How to get `oci_private_key` contents:**
 > ```bash
@@ -133,9 +133,9 @@ Set these in the workspace **Variables** tab (Terraform Variables section):
 # Or manually via TFC UI: Workspace → Queue Plan
 
 # Or from CLI (if using TFC CLI-driven workflow):
-cd oci-deployment/terraform
+cd expense-oci-infra
 terraform login
-terraform init -backend-config=backend.tfc.hcl -reconfigure
+terraform init -backend-config=terraform/backend.tfc.hcl -reconfigure
 terraform plan
 ```
 
@@ -149,7 +149,7 @@ git push origin main
 # Workspace → Queue Plan → Confirm → Apply
 
 # Option C: Via CLI (if using CLI-driven workflow)
-cd oci-deployment/terraform
+cd expense-oci-infra
 terraform apply
 ```
 
@@ -178,9 +178,9 @@ If you already have infrastructure deployed with local state:
 
 ```bash
 # 1. Push local state to TFC
-cd oci-deployment/terraform
+cd expense-oci-infra
 terraform login
-terraform init -backend-config=backend.tfc.hcl -reconfigure
+terraform init -backend-config=terraform/backend.tfc.hcl -reconfigure
 
 # Terraform will prompt to copy existing state to TFC. Confirm yes.
 

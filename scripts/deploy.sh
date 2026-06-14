@@ -259,25 +259,25 @@ fi
 # ---------------------------------------------------------------------------
 cd "${TERRAFORM_DIR}"
 
-# Build terraform init command
-# Note: provider.tf has no backend/cloud block, so we must always pass one.
-TF_INIT_CMD="terraform init -reconfigure"
-if [ "${USE_TFC}" = true ]; then
-    TF_INIT_CMD="${TF_INIT_CMD} -backend-config=${TFC_BACKEND_CONFIG}"
-else
-    TF_INIT_CMD="${TF_INIT_CMD} -backend-config=${TERRAFORM_DIR}/backend.local.hcl"
-fi
+# Helper function to run terraform init with proper quoting for paths with spaces
+terraform_init() {
+    if [ "${USE_TFC}" = true ]; then
+        terraform init -reconfigure -backend-config="${TFC_BACKEND_CONFIG}"
+    else
+        terraform init -reconfigure -backend-config="${TERRAFORM_DIR}/backend.local.hcl"
+    fi
+}
 
 case "${MODE}" in
     plan)
         log_info "Running terraform plan..."
 
+        terraform_init
+
         if [ "${USE_TFC}" = true ]; then
             # TFC plan — variables come from workspace, no -var-file needed
-            ${TF_INIT_CMD}
             terraform plan
         else
-            ${TF_INIT_CMD}
             terraform plan -var-file="${ENV_FILE}"
         fi
 
@@ -287,12 +287,12 @@ case "${MODE}" in
     apply)
         log_info "Running terraform apply..."
 
+        terraform_init
+
         if [ "${USE_TFC}" = true ]; then
             # TFC apply — variables come from workspace
-            ${TF_INIT_CMD}
             terraform apply -auto-approve
         else
-            ${TF_INIT_CMD}
             terraform apply -var-file="${ENV_FILE}" -auto-approve
         fi
 
@@ -309,8 +309,9 @@ case "${MODE}" in
 
         log_info "Running terraform destroy..."
 
+        terraform_init
+
         if [ "${USE_TFC}" = true ]; then
-            ${TF_INIT_CMD}
             terraform destroy -auto-approve
         else
             # For local mode: detach block volumes first (they may block destroy)
@@ -323,7 +324,6 @@ case "${MODE}" in
                 --force 2>/dev/null || true
             set -e
 
-            ${TF_INIT_CMD}
             terraform destroy -var-file="${ENV_FILE}" -auto-approve
         fi
 

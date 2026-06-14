@@ -4,7 +4,7 @@
 # Extends the base expense-backend/Dockerfile for OCI ARM deployment.
 # Key differences:
 #   - Optimized for ARM64 (oci Ampere A1)
-#   - Production JVM tuning
+#   - Production JVM tuning (Java 21)
 #   - Non-root user security hardening
 #
 # Build:
@@ -13,7 +13,7 @@
 #     expense-backend/
 # =============================================================================
 
-FROM eclipse-temurin:17-jdk AS builder
+FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 
 # Copy Maven wrapper and pom.xml for dependency caching
@@ -26,7 +26,7 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests -P prod -B -q
 
 # Production runtime
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Create non-root user

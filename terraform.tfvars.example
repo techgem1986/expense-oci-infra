@@ -16,7 +16,7 @@ fingerprint     = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
 # Terraform Cloud: use oci_private_key (PEM content) instead
 private_key_path = "~/.oci/oci_api_key.pem"
 # oci_private_key  = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-oci_region      = "ap-mumbai-1"
+oci_region      = "ap-hyderabad-1"
 
 # ---- Networking ----
 vcn_cidr              = "10.0.0.0/16"

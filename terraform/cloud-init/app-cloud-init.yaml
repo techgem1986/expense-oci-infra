@@ -59,7 +59,7 @@ runcmd:
   # ----------------------------------------------------
   # Create Data Directories
   # ----------------------------------------------------
-  - mkdir -p /data/docker-logs /data/letsencrypt
+  - mkdir -p /data/docker-logs /data/letsencrypt /data/prometheus
 
   # ----------------------------------------------------
   # Deploy Application Stack with Docker Compose
@@ -74,13 +74,12 @@ runcmd:
     # =============================================================================
     # Deployed on: OCI ARM Ampere A1 (2 OCPU, 12GB RAM)
     # Architecture:
-    #   - expense-backend:  Spring Boot 3.4 (Java 17, port 8080)
+    #   - expense-backend:  Spring Boot 3.4 (Java 21, port 8080)
     #   - expense-frontend: Nginx serving React SPA (port 80)
     #   - prometheus:        Metrics scraper
     #   - node-exporter:     System metrics
     # Database (PostgreSQL + Redis) runs on the DB server (${db_private_ip})
     # =============================================================================
-    version: "3.8"
 
     networks:
       expense-net:
@@ -188,7 +187,7 @@ runcmd:
       # Prometheus (Metrics Collection)
       # =========================================================================
       prometheus:
-        image: prom/prometheus:v2.53.0
+        image: prom/prometheus:v2.55.1
         container_name: expense-prometheus
         restart: unless-stopped
         networks:
@@ -224,7 +223,7 @@ runcmd:
       # Node Exporter (Host System Metrics)
       # =========================================================================
       node-exporter:
-        image: prom/node-exporter:v1.8.0
+        image: prom/node-exporter:v1.9.1
         container_name: expense-node-exporter
         restart: unless-stopped
         pid: host
@@ -290,6 +289,8 @@ runcmd:
     # Clone or fetch the application source
     if [ ! -d "source" ]; then
       git clone https://github.com/YOUR_USERNAME/expense-management-system.git source
+      echo "⚠  WARNING: Update the GitHub URL in cloud-init to your actual repository!"
+      echo "⚠  Edit: expense-oci-infra/terraform/cloud-init/app-cloud-init.yaml"
     fi
 
     cd source

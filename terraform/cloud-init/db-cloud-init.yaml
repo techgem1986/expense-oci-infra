@@ -1,7 +1,7 @@
 #cloud-config
 # =============================================================================
 # DB Server Cloud-Init
-# Bootstraps: Docker, PostgreSQL 15, Redis 7
+# Bootstraps: Docker, PostgreSQL 17, Redis 7
 # Data stored on attached block volume at /data
 # =============================================================================
 
@@ -91,15 +91,13 @@ runcmd:
   # ----------------------------------------------------
   # Deploy PostgreSQL + Redis with Docker Compose
   # ----------------------------------------------------
-  - |
-    mkdir -p /opt/expense-db
+  - mkdir -p /opt/expense-db
 
   - |
     cat > /opt/expense-db/docker-compose.yml << 'COMPOSE_EOF'
     # =============================================================================
-    # DB Server Docker Compose - PostgreSQL 15 + Redis 7
+    # DB Server Docker Compose - PostgreSQL 17 + Redis 7
     # =============================================================================
-    version: "3.8"
 
     networks:
       expense-db-net:
@@ -121,7 +119,7 @@ runcmd:
 
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:17-alpine
         container_name: expense-postgres
         restart: unless-stopped
         networks:

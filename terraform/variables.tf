@@ -36,7 +36,7 @@ variable "oci_private_key" {
 variable "oci_region" {
   description = "OCI region identifier"
   type        = string
-  default     = "ap-mumbai-1"
+  default     = "ap-hyderabad-1"
 }
 
 # =============================================================================
@@ -116,7 +116,7 @@ variable "image_operating_system" {
 variable "image_os_version" {
   description = "OS version"
   type        = string
-  default     = "22.04"
+  default     = "24.04"
 }
 
 # =============================================================================

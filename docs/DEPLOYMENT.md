@@ -28,23 +28,23 @@
 │  │  │  │                                                │   │    │     │
 │  │  │  │  ┌────────────────────────────────────────┐   │   │    │     │
 │  │  │  │  │  ARM Ampere A1 (2 OCPU, 12GB RAM)      │   │   │    │     │
-│  │  │  │  │  Ubuntu 22.04                          │   │   │    │     │
+│  │  │  │  │  Ubuntu 24.04 LTS                       │   │   │    │     │
 │  │  │  │  │                                         │   │   │    │     │
 │  │  │  │  │  ┌─────────────────────────────────┐   │   │   │    │     │
 │  │  │  │  │  │  Docker Compose                  │   │   │   │    │     │
 │  │  │  │  │  │  ┌─────────────────────────┐    │   │   │   │    │     │
-│  │  │  │  │  │  │ expense-frontend (Nginx) │    │   │   │   │    │     │
-│  │  │  │  │  │  │ Port 80                  │    │   │   │   │    │     │
-│  │  │  │  │  │  │ / → Static SPA           │    │   │   │   │    │     │
-│  │  │  │  │  │  │ /api/* → Backend:8080    │    │   │   │   │    │     │
+│  │  │  │  │  │  │ expense-frontend (Nginx) │    │   │   │    │     │
+│  │  │  │  │  │  │ Port 80                  │    │   │   │    │     │
+│  │  │  │  │  │  │ / → Static SPA           │    │   │   │    │     │
+│  │  │  │  │  │  │ /api/* → Backend:8080    │    │   │   │    │     │
 │  │  │  │  │  │  └─────────────────────────┘    │   │   │   │    │     │
 │  │  │  │  │  │  ┌─────────────────────────┐    │   │   │   │    │     │
-│  │  │  │  │  │  │ expense-backend (Java 17)│    │   │   │   │    │     │
+│  │  │  │  │  │  │ expense-backend (Java 21)│    │   │   │   │    │     │
 │  │  │  │  │  │  │ Port 8080 (JVM 8GB)      │    │   │   │   │    │     │
 │  │  │  │  │  │  └─────────────────────────┘    │   │   │   │    │     │
 │  │  │  │  │  │  ┌─────────────────────────┐    │   │   │   │    │     │
-│  │  │  │  │  │  │ Prometheus              │    │   │   │   │    │     │
-│  │  │  │  │  │  │ Port 9090               │    │   │   │   │    │     │
+│  │  │  │  │  │  │ Prometheus 2.55         │    │   │   │    │     │
+│  │  │  │  │  │  │ Port 9090               │    │   │   │    │     │
 │  │  │  │  │  │  └─────────────────────────┘    │   │   │   │    │     │
 │  │  │  │  │  └─────────────────────────────────┘   │   │   │    │     │
 │  │  │  │  │  Block Volume: 50GB (/data/docker-logs, │   │   │    │     │
@@ -57,12 +57,12 @@
 │  │  │  │                                                │     │    │     │
 │  │  │  │  ┌────────────────────────────────────────┐   │     │    │     │
 │  │  │  │  │  ARM Ampere A1 (2 OCPU, 12GB RAM)      │   │     │    │     │
-│  │  │  │  │  Ubuntu 22.04                          │   │     │    │     │
+│  │  │  │  │  Ubuntu 24.04 LTS                       │   │     │    │     │
 │  │  │  │  │                                         │   │     │    │     │
 │  │  │  │  │  ┌─────────────────────────────────┐   │   │     │    │     │
 │  │  │  │  │  │  Docker Compose                  │   │   │     │    │     │
 │  │  │  │  │  │  ┌─────────────────────────┐    │   │   │     │    │     │
-│  │  │  │  │  │  │ PostgreSQL 15 (Alpine)   │    │   │   │     │    │     │
+│  │  │  │  │  │  │ PostgreSQL 17 (Alpine)   │    │   │   │     │    │     │
 │  │  │  │  │  │  │ Port 5432               │    │   │   │     │    │     │
 │  │  │  │  │  │  └─────────────────────────┘    │   │   │     │    │     │
 │  │  │  │  │  │  ┌─────────────────────────┐    │   │   │     │    │     │
@@ -90,7 +90,7 @@
 | Outbound Data Transfer | 10 TB/month | ~variable | — |
 | Object Storage | 10 GB | 0 | 10 GB |
 
-> **Note:** OCI Always Free resources may vary by region. Verify availability in your chosen region (default: ap-mumbai-1).
+> **Note:** OCI Always Free resources may vary by region. Verify availability in your chosen region (default: ap-hyderabad-1).
 
 ---
 
@@ -115,7 +115,7 @@ oci setup config
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Terraform | ≥ 1.5.0 | Infrastructure as Code |
+| Terraform | ≥ 1.9.0 | Infrastructure as Code |
 | OCI CLI | ≥ 3.0 | Oracle Cloud CLI |
 | Docker | ≥ 24.0 | Container build |
 | Git | ≥ 2.30 | Source code |
@@ -134,7 +134,7 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -C "oci-expense-app"
 ### Step 1: Configure Variables
 
 ```bash
-cd oci-deployment/terraform
+cd expense-oci-infra/terraform
 cp terraform.tfvars.example terraform.tfvars
 
 # Edit terraform.tfvars with your values:
@@ -150,7 +150,7 @@ vim terraform.tfvars
 ### Step 2: Deploy
 
 ```bash
-cd oci-deployment/scripts
+cd expense-oci-infra/scripts
 chmod +x deploy.sh
 
 # Preview infrastructure changes first:
@@ -197,6 +197,20 @@ curl -I https://expense.yourdomain.com
 | `oci_core_instance` × 2 | 2 ARM Ampere A1 VMs (2 OCPU, 12GB each) |
 | `oci_core_volume` × 2 | 2 × 50GB block volumes |
 | `oci_load_balancer` | Flexible LB (10 Mbps) |
+
+### Technology Stack
+
+| Component | Version |
+|-----------|---------|
+| Ubuntu | 24.04 LTS |
+| Java | 21 (Eclipse Temurin) |
+| Node.js | 22 LTS |
+| PostgreSQL | 17 Alpine |
+| Redis | 7 Alpine |
+| Prometheus | 2.55.1 |
+| Node Exporter | 1.9.1 |
+| Docker Compose | Latest (standalone plugin) |
+| Nginx | Latest (Alpine) |
 
 ### Network Security Rules
 
@@ -344,22 +358,22 @@ The deployment defaults to **local state** (`terraform.tfstate` in the terraform
 
 ### Option 1: Terraform Cloud (Recommended)
 
-See [README_TFC.md](../README) for full setup instructions.
+See [README.md](../README) for full setup instructions.
 
 Quick start:
 ```bash
 # 1. Edit backend.tfc.hcl with your TFC org and workspace
-vim oci-deployment/terraform/backend.tfc.hcl
+vim expense-oci-infra/terraform/backend.tfc.hcl
 
 # 2. Authenticate with Terraform Cloud
 terraform login
 
 # 3. Initialize with TFC backend (pushes local state to TFC)
-cd oci-deployment/terraform
+cd expense-oci-infra/terraform
 terraform init -backend-config=backend.tfc.hcl -reconfigure
 
 # 4. Use the deploy script with --tfc flag
-cd oci-deployment/scripts
+cd expense-oci-infra/scripts
 ./deploy.sh --tfc --plan-only   # Preview
 ./deploy.sh --tfc               # Apply
 ./deploy.sh --tfc --destroy     # Destroy
@@ -454,7 +468,7 @@ curl http://localhost:8080/actuator/health
 ## Tear Down
 
 ```bash
-cd oci-deployment/scripts
+cd expense-oci-infra/scripts
 ./deploy.sh --destroy
 ```
 
@@ -465,7 +479,7 @@ cd oci-deployment/scripts
 ## File Structure Reference
 
 ```
-oci-deployment/
+expense-oci-infra/
 ├── terraform/
 │   ├── provider.tf          # OCI provider & Terraform config
 │   ├── variables.tf         # Input variables

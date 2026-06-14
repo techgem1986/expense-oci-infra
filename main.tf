@@ -28,7 +28,7 @@
 #     │     Docker Compose: Nginx + Spring Boot + Prometheus
 #     │     Block Volume 50 GB (docker data, logs)
 #     └── DB Subnet   (10.0.2.0/24) → ARM Ampere A1 (2 OCPU / 12 GB)
-#           Docker Compose: PostgreSQL 15 + Redis 7
+#           Docker Compose: PostgreSQL 17 + Redis 7
 #           Block Volume 50 GB (PGDATA, Redis AOF/RDB)
 #
 # ---------------------------------------------------------------------------
@@ -62,12 +62,12 @@
 # Terraform & Provider Requirements
 # ---------------------------------------------------------------------------
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.9.0"
 
   required_providers {
     oci = {
       source  = "oracle/oci"
-      version = "~> 6.0"
+      version = "~> 6.22"
     }
     tls = {
       source  = "hashicorp/tls"
@@ -76,6 +76,10 @@ terraform {
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
     }
   }
 
@@ -130,7 +134,7 @@ variable "oci_private_key" {
 variable "oci_region" {
   description = "OCI region identifier"
   type        = string
-  default     = "ap-mumbai-1"
+  default     = "ap-hyderabad-1"
 }
 
 # --- Networking ---
@@ -199,7 +203,7 @@ variable "image_operating_system" {
 variable "image_os_version" {
   description = "OS version"
   type        = string
-  default     = "22.04"
+  default     = "24.04"
 }
 
 # --- Block Storage ---
@@ -282,17 +286,17 @@ module "expense_oci_infra" {
   oci_region       = var.oci_region
 
   # Networking
-  vcn_cidr              = var.vcn_cidr
+  vcn_cidr               = var.vcn_cidr
   public_subnet_app_cidr = var.public_subnet_app_cidr
   public_subnet_db_cidr  = var.public_subnet_db_cidr
 
   # Compute
-  app_instance_shape    = var.app_instance_shape
-  app_instance_ocpus    = var.app_instance_ocpus
+  app_instance_shape     = var.app_instance_shape
+  app_instance_ocpus     = var.app_instance_ocpus
   app_instance_memory_gb = var.app_instance_memory_gb
-  db_instance_shape     = var.db_instance_shape
-  db_instance_ocpus     = var.db_instance_ocpus
-  db_instance_memory_gb = var.db_instance_memory_gb
+  db_instance_shape      = var.db_instance_shape
+  db_instance_ocpus      = var.db_instance_ocpus
+  db_instance_memory_gb  = var.db_instance_memory_gb
 
   # OS Image
   image_operating_system = var.image_operating_system
@@ -308,10 +312,10 @@ module "expense_oci_infra" {
   ssh_allowed_ip      = var.ssh_allowed_ip
 
   # Application
-  app_domain                  = var.app_domain
-  db_password                 = var.db_password
-  jwt_secret                  = var.jwt_secret
-  grafana_cloud_api_key       = var.grafana_cloud_api_key
+  app_domain                   = var.app_domain
+  db_password                  = var.db_password
+  jwt_secret                   = var.jwt_secret
+  grafana_cloud_api_key        = var.grafana_cloud_api_key
   grafana_cloud_prometheus_url = var.grafana_cloud_prometheus_url
 }
 
@@ -393,43 +397,3 @@ output "post_setup_instructions" {
   value       = module.expense_oci_infra.post_setup_instructions
 }
 
-# =============================================================================
-# Debug Outputs — Authentication Configuration
-# =============================================================================
-# These outputs help diagnose authentication issues in Terraform Cloud
-# =============================================================================
-
-output "debug_auth_method" {
-  description = "Which authentication method is being used (TFC or local file)"
-  value       = module.expense_oci_infra.debug_auth_method
-  sensitive   = true
-}
-
-output "debug_private_key_path" {
-  description = "Expanded path to the private key file (for local execution)"
-  value       = module.expense_oci_infra.debug_private_key_path
-}
-
-output "debug_oci_private_key_set" {
-  description = "Whether oci_private_key variable is set (true/false)"
-  value       = module.expense_oci_infra.debug_oci_private_key_set
-  sensitive   = true
-}
-
-output "debug_tenancy_ocid_set" {
-  description = "Whether tenancy_ocid is configured"
-  value       = length(var.tenancy_ocid) > 0 ? "✓ SET" : "✗ NOT SET"
-  sensitive   = true
-}
-
-output "debug_user_ocid_set" {
-  description = "Whether user_ocid is configured"
-  value       = length(var.user_ocid) > 0 ? "✓ SET" : "✗ NOT SET"
-  sensitive   = true
-}
-
-output "debug_fingerprint_set" {
-  description = "Whether fingerprint is configured"
-  value       = length(var.fingerprint) > 0 ? "✓ SET" : "✗ NOT SET"
-  sensitive   = true
-}

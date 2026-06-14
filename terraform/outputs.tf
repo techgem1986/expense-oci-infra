@@ -94,23 +94,3 @@ output "post_setup_instructions" {
   ]
 }
 
-# =============================================================================
-# Debug Outputs — Authentication Configuration
-# =============================================================================
-# These outputs help diagnose authentication issues in Terraform Cloud
-# =============================================================================
-
-output "debug_auth_method" {
-  description = "Which authentication method is being used (TFC or local file)"
-  value       = local.using_tfc_private_key ? "TFC (oci_private_key variable)" : "Local file (private_key_path)"
-}
-
-output "debug_private_key_path" {
-  description = "Expanded path to the private key file (for local execution)"
-  value       = local.private_key_path_expanded
-}
-
-output "debug_oci_private_key_set" {
-  description = "Whether oci_private_key variable is set (true/false)"
-  value       = local.using_tfc_private_key
-}
